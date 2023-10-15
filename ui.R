@@ -8,40 +8,50 @@
 #
 
 library(shiny)
+library(shinydashboard)
+library(tidyverse)
+library(plotly)
+library(readxl)
 
-Algeria<- read_excel("Indice-des-prix-a-la-consommation-base-1989-011990-122001.xlsx")
-Algeria2<- read_excel("IPC-y-compris-hors-alimentation-base-2001-_012002-082023.xlsx")
+IndexChoices=c("Alimentations - Boissons non alcoolisées",
+"Habillement - Chaussures",
+"Logements - Charges",
+"Meubles et Articles d'Ameublement",
+"Santé - Hygiène Corporelle",
+"Transports et Communications",
+"Education - Culture - Loisirs",
+"Divers (N.D.A)",
+"IPC GLOBAL")
 
-Algeria<-Algeria %>% 
-  pivot_longer(!GROUPES,names_to = "date")%>% 
-  mutate(date=as.Date(as.numeric(date), origin = "1899-12-30"))
-
-Algeria %>% filter(date==max(date)) %>% mutate(value2=value) %>% select(GROUPES,value2) ->indexing
-
-Algeria2<-Algeria2 %>% 
-  pivot_longer(!GROUPES,names_to = "date")%>% 
-  mutate(date=as.Date(as.numeric(date), origin = "1899-12-30"))%>% left_join(indexing) %>% mutate(value=value*(value2/100))
-
-Algeria<-bind_rows(Algeria,Algeria2)
-Algeria<-Algeria  %>% 
-  group_by(GROUPES) %>% 
-  mutate(YoY=(value/lag(value,12))-1) %>% 
-  mutate(MoM=value/lag(value,1)-1)
 
 # Define UI for application that draws a histogram
+
 dashboardPage(
   dashboardHeader(title = "Algerian Economic Data",titleWidth = "300px"),
-  dashboardSidebar(),
-  dashboardBody(
-    selectInput("groups",
-                "Groups",
-                choices=unique(Algeria$GROUPES),
-                multiple = TRUE,
-                selected = "IPC GLOBAL"
-                    
+  dashboardSidebar(sidebarMenu(
+    menuItem("Central Bank",tabName = "CentralBank",icon = icon("dashboard")),
+    menuItem("Inflation",tabName = "inflation",icon = icon("dashboard")),
+    menuItem("GDP",tabName = "gdp",icon = icon("dashboard")))
+    
     ),
-    plotlyOutput("Inflation_YOY"),
-    plotlyOutput("Distribution_MOM"),
-    plotlyOutput("Indices")
-  )
+  dashboardBody(
+    tabItems(
+      tabItem(tabName = "CentralBank",
+              uiOutput("BS_Choice"),
+              plotlyOutput("BalanceSheet"),
+              plotlyOutput("Reserves")),
+      tabItem(tabName = "inflation",
+        selectInput("groups",
+                "Groups",
+                choices=IndexChoices,
+                multiple = TRUE,
+                selected = "IPC GLOBAL"),
+          plotlyOutput("Inflation_YOY"),
+          plotlyOutput("Distribution_MOM"),
+          plotlyOutput("Indices")
+        ),
+      tabItem(tabName = "gdp",
+              plotlyOutput("GDP"))
+      )
+    )
 )
